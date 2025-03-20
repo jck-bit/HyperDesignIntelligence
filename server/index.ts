@@ -93,10 +93,10 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+  if (process.env.NODE_ENV === 'development') {
+    app.listen(3000, () => {
+      console.log('Local dev server running on port 3000');
+    });
   }
 
   // Use PORT from environment variable (for deployment) or default to 3000
@@ -128,3 +128,14 @@ app.use((req, res, next) => {
     });
   }
 })();
+
+
+// Add at the bottom of index.ts
+export default async (req: Request, res: Response) => {
+  // Convert Vercel's Request/Response to Express format
+  const expressReq = req as unknown as express.Request;
+  const expressRes = res as unknown as express.Response;
+  
+  // Forward to Express server
+  app(expressReq, expressRes);
+};

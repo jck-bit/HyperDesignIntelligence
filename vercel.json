@@ -2,32 +2,14 @@
     "version": 2,
     "builds": [
       {
-        "src": "package.json",
-        "use": "@vercel/node",
-        "config": {
-          "includeFiles": ["dist/**", "server/**", "package.json", "yarn.lock", "pnpm-lock.yaml"]
-        }
-      },
-      {
-        "src": "client/package.json",
-        "use": "@vercel/static-build",
-        "config": {
-          "deployPath": "dist/public"
-        }
+        "src": "vercel-adapter.js",
+        "use": "@vercel/node"
       }
     ],
     "routes": [
-  {
-    "src": "/api/(.*)",
-    "dest": "dist/index.js"
-  },
-  {
-    "src": "/assets/(.*)",
-    "dest": "dist/public/assets/$1"
-  },
-  {
-    "src": "^/.*$",  
-    "dest": "dist/public/index.html"
-  }
-]
+      {
+        "src": "/(.*)",
+        "dest": "vercel-adapter.js"
+      }
+    ]
   }
