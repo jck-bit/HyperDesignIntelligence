@@ -131,18 +131,21 @@ app.use((req, res, next) => {
 
 
 // Add this export at the BOTTOM of the file
+// Replace the entire IIFE at the bottom with:
 export const handler = async (req: Request, res: Response) => {
-  // Initialize app instance for each request (serverless requirement)
   const expressApp = express();
   
-  // Replicate your existing setup
+  // Re-use existing middleware setup
   expressApp.use(express.json());
+  expressApp.use(express.urlencoded({ extended: false }));
+  
+  // Initialize database connection pool
   await initializeDatabase();
+  
+  // Register routes and middleware
   registerRoutes(expressApp);
-  
-  // Handle static assets
   serveStatic(expressApp);
-  
-  // Forward request to express instance
+
+  // Forward request to Express
   expressApp(req, res);
 };
