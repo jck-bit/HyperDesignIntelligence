@@ -14,7 +14,16 @@ class AnthropicService {
         model: 'claude-3-5-sonnet-20241022',
       });
 
-      return message.content[0].text;
+      // Handle different content block types
+      const contentBlock = message.content[0];
+      
+      // Check if it's a text block
+      if (contentBlock.type === 'text') {
+        return contentBlock.text;
+      }
+      
+      // If it's a tool use block or another type, return a default message
+      return "I received a response that I couldn't process as text. Please try again.";
     } catch (error) {
       console.error('Anthropic API error:', error);
       throw error;

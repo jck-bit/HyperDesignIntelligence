@@ -91,7 +91,7 @@ export class DocumentService {
 
   private extractContent(content: string): { description: string; fullContent: string } {
     // Split content into Q&A pairs
-    const qaPattern = /Q\d+:\s*(.*?)\s*(?:A\d+:\s*(.*?))?\s*(?=Q\d+:|$)/gs;
+    const qaPattern = /Q\d+:\s*([\s\S]*?)\s*(?:A\d+:\s*([\s\S]*?))?\s*(?=Q\d+:|$)/g;
     const matches = Array.from(content.matchAll(qaPattern));
 
     let description = '';

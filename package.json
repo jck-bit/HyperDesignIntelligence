@@ -5,10 +5,15 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx server/index.ts",
-    "build": "vite build && esbuild server/**/*.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "NODE_ENV=production node dist/index.js",
+    "dev:new": "node --import=tsx dev.js",
+    "build": "vite build && rm -rf dist/server-build && esbuild server/**/*.ts shared/**/*.ts vercel-adapter.ts api/index.js --platform=node --packages=external --format=esm --outdir=dist/server-build --bundle --out-extension:.js=.mjs --external:pg-native && node fix-paths.js",
+    "api": "NODE_ENV=production node dist/server-build/vercel-adapter.mjs",
+    "client": "vite",
+    "start": "concurrently \"npm run api\" \"npm run client\"",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "vercel-build": "NODE_ENV=production npm run build",
+    "vercel-deploy": "vercel --prod"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",
@@ -96,6 +101,7 @@
     "@types/ws": "^8.5.13",
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
     "drizzle-kit": "^0.30.4",
     "esbuild": "^0.24.0",
     "postcss": "^8.4.47",

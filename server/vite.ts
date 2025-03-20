@@ -71,19 +71,43 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-        
-  const distPath = path.resolve(__dirname, "..", "dist", "public");
+  // Vercel-compatible path resolution
+  const distPath = process.env.NODE_ENV === 'production'
+    ? path.join(process.cwd(), 'dist/public')
+    : path.resolve(__dirname, "..", "dist", "public");
 
-  if (!fs.existsSync(distPath)) {
-    throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
-    );
+  // Check if the directory exists in development mode
+  if (process.env.NODE_ENV !== 'production' && !fs.existsSync(distPath)) {
+    console.warn(`Static directory not found: ${distPath}. This is expected during build.`);
+    return;
   }
 
-  app.use(express.static(distPath));
+  // Serve static files with proper caching headers
+  app.use(express.static(distPath, {
+    maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
+    etag: true,
+    index: false 
+  }));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  // Handle SPA routing - serve index.html for all non-file routes
+  app.use('*', (req, res, next) => {
+    // Skip API routes
+    if (req.originalUrl.startsWith('/api')) {
+      return next();
+    }
+    
+    // Skip requests for files with extensions (likely static assets)
+    if (req.originalUrl.includes('.') && !req.originalUrl.endsWith('.html')) {
+      return next();
+    }
+    
+    const indexPath = path.join(distPath, 'index.html');
+    
+    // In production, don't throw if index.html doesn't exist (Vercel might handle it differently)
+    if (process.env.NODE_ENV === 'production' || fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+    
+    next();
   });
 }

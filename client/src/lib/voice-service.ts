@@ -8,7 +8,7 @@ interface VoiceSettings {
 }
 
 // Voice option interface
-interface VoiceOption {
+export interface VoiceOption {
   voice_id: string;
   name: string;
 }

@@ -93,10 +93,10 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+  if (process.env.NODE_ENV === 'development') {
+    app.listen(3000, () => {
+      console.log('Local dev server running on port 3000');
+    });
   }
 
   // Use PORT from environment variable (for deployment) or default to 3000
@@ -128,3 +128,24 @@ app.use((req, res, next) => {
     });
   }
 })();
+
+
+// Add this export at the BOTTOM of the file
+// Replace the entire IIFE at the bottom with:
+export const handler = async (req: Request, res: Response) => {
+  const expressApp = express();
+  
+  // Re-use existing middleware setup
+  expressApp.use(express.json());
+  expressApp.use(express.urlencoded({ extended: false }));
+  
+  // Initialize database connection pool
+  await initializeDatabase();
+  
+  // Register routes and middleware
+  registerRoutes(expressApp);
+  serveStatic(expressApp);
+
+  // Forward request to Express
+  expressApp(req, res);
+};

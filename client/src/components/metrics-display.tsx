@@ -11,13 +11,13 @@ interface MetricsDisplayProps {
 export default function MetricsDisplay({ agents }: MetricsDisplayProps) {
   const data = agents.map(agent => ({
     name: agent.name,
-    requests: (agent.metrics as any).requests_handled,
-    success: (agent.metrics as any).success_rate,
-    response_time: (agent.metrics as any).avg_response_time
+    requests: agent.metrics && (agent.metrics as any).requests_handled !== undefined ? (agent.metrics as any).requests_handled : 0,
+    success: agent.metrics && (agent.metrics as any).success_rate !== undefined ? (agent.metrics as any).success_rate : 100,
+    response_time: agent.metrics && (agent.metrics as any).avg_response_time !== undefined ? (agent.metrics as any).avg_response_time : 0
   }));
 
-  const totalRequests = data.reduce((sum, item) => sum + item.requests, 0);
-  const avgSuccess = data.reduce((sum, item) => sum + item.success, 0) / data.length;
+  const totalRequests = data.reduce((sum, item) => sum + (item.requests || 0), 0);
+  const avgSuccess = data.reduce((sum, item) => sum + (item.success || 0), 0) / (data.length || 1);
 
   return (
     <motion.div

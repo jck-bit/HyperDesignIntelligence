@@ -63,7 +63,7 @@ export default function VoiceSettings() {
             </SelectTrigger>
             <SelectContent>
               {voices.map((voice) => (
-                <SelectItem key={voice.id} value={voice.id}>
+                <SelectItem key={voice.voice_id} value={voice.voice_id}>
                   {voice.name}
                 </SelectItem>
               ))}

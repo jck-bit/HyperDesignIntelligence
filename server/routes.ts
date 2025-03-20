@@ -2,7 +2,107 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import multer from 'multer';
-import { storage } from "./storage";
+// Import storage directly
+import { storage } from './storage';
+
+// This is just a TypeScript type declaration to avoid errors
+// The actual implementation will use the imported storage
+interface StorageInterface {
+  getAgents(): Promise<any[]>;
+  updateAgentStatus(id: number, status: string): Promise<any>;
+  updateAgentMetrics(id: number, metrics: any): Promise<any>;
+  getDigitalTwins(): Promise<any[]>;
+  createDigitalTwin(data: any): Promise<any>;
+  getConversations(): Promise<any[]>;
+  getConversation(id: number): Promise<any | null>;
+  createConversation(data: any): Promise<any>;
+  getConversationsByParticipant(name: string): Promise<any[]>;
+  cleanupDuplicateAgents(): Promise<number>;
+  createAgent(data: any): Promise<any>;
+}
+
+// Fallback storage implementation for when imports fail
+function createFallbackStorage() {
+  console.log('Using fallback storage implementation');
+  return {
+    getAgents: async () => {
+      return [
+        {
+          id: 1,
+          name: "Albert Einstein",
+          type: "Theoretical Physics",
+          capabilities: ["Innovation", "Research", "Problem Solving"],
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Einstein",
+          status: "active"
+        },
+        {
+          id: 2,
+          name: "Elon Musk",
+          type: "Tech Entrepreneur",
+          capabilities: ["Innovation", "Strategic Thinking", "Product Development"], 
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Musk",
+          status: "active"
+        },
+        {
+          id: 3,
+          name: "Emad Mostaque",
+          type: "AI Innovator",
+          capabilities: ["Artificial Intelligence", "Leadership", "Technical Vision"],
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Mostaque",
+          status: "active"
+        },
+        {
+          id: 4,
+          name: "Fei-Fei Li",
+          type: "AI Research",
+          capabilities: ["Artificial Intelligence", "Research", "Technical Vision"],
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Li",
+          status: "active"
+        },
+        {
+          id: 5,
+          name: "Leonardo da Vinci",
+          type: "Renaissance Innovator",
+          capabilities: ["Innovation", "Art", "Engineering"],
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=DaVinci",
+          status: "active"
+        },
+        {
+          id: 6,
+          name: "Steve Jobs",
+          type: "Tech Visionary",
+          capabilities: ["Innovation", "Product Development", "Design"],
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Jobs",
+          status: "active"
+        },
+        {
+          id: 7,
+          name: "Walt Disney",
+          type: "Creative Visionary",
+          capabilities: ["Creativity", "Innovation", "Storytelling"],
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Disney",
+          status: "active"
+        }
+      ];
+    },
+    updateAgentStatus: async (id: number, status: string) => {
+      console.log(`Fallback: Updating agent ${id} status to ${status}`);
+      return { id, status };
+    },
+    updateAgentMetrics: async (id: number, metrics: any) => {
+      console.log(`Fallback: Updating agent ${id} metrics`, metrics);
+      return { id, metrics };
+    },
+    getDigitalTwins: async () => [],
+    createDigitalTwin: async (data: any) => data,
+    getConversations: async () => [],
+    getConversation: async (id: number) => null,
+    createConversation: async (data: any) => data,
+    getConversationsByParticipant: async (name: string) => [],
+    cleanupDuplicateAgents: async () => 0,
+    createAgent: async (data: any) => data
+  };
+}
 import { insertAgentSchema, insertDigitalTwinSchema } from "@shared/schema";
 import { voiceService } from "./voice-service";
 import { documentService } from "./document-service";
@@ -112,7 +212,7 @@ export function registerRoutes(app: Express): Server {
 
     const broadcast = () => {
       if (ws.readyState === WebSocket.OPEN) {
-        storage.getAgents().then((agents) => {
+        storage.getAgents().then((agents:any) => {
           ws.send(JSON.stringify({ type: "agents_update", data: agents }));
         });
       }
