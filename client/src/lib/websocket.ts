@@ -95,7 +95,13 @@ class WebSocketClient {
       const response = await fetch('/api/agents');
       if (response.ok) {
         const agents = await response.json();
-        this.listeners.forEach(listener => listener(agents));
+        if (Array.isArray(agents)) {
+          this.listeners.forEach(listener => listener(agents));
+        } else {
+          console.error("Invalid response format from /api/agents:", agents);
+        }
+      } else {
+        console.error("Error fetching agents:", response.status, response.statusText);
       }
     } catch (error) {
       console.error("Error fetching agents via REST API:", error);
