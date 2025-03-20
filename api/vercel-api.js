@@ -201,7 +201,6 @@ app.all('/api/*', (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
 });
 
-
 // Error handling middleware
 app.use((err, _req, res, _next) => {
   console.error('API Error:', err);
