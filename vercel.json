@@ -1,15 +1,31 @@
 {
-    "version": 2,
-    "builds": [
-      {
-        "src": "dist/vercel-adapter.mjs",
-        "use": "@vercel/node"
-      }
-    ],
-    "routes": [
-      {
-        "src": "/(.*)",
-        "dest": "dist/vercel-adapter.mjs"
-      }
-    ]
-  }
+  "version": 2,
+  "builds": [
+    {
+      "src": "dist/vercel-adapter.mjs",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "dist/public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/assets/(.*)",
+      "dest": "/dist/public/assets/$1"
+    },
+    {
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|otf)$)",
+      "dest": "/dist/public/$1"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/dist/vercel-adapter.mjs"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/dist/vercel-adapter.mjs"
+    }
+  ]
+}

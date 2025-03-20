@@ -130,12 +130,24 @@ app.use((req, res, next) => {
 })();
 
 
-// Add at the bottom of index.ts
+// Export for Vercel serverless function
 export default async (req: Request, res: Response) => {
   // Convert Vercel's Request/Response to Express format
   const expressReq = req as unknown as express.Request;
   const expressRes = res as unknown as express.Response;
   
+  // Set NODE_ENV to production for Vercel environment if not already set
+  if (!process.env.NODE_ENV) {
+    process.env.NODE_ENV = 'production';
+  }
+  
   // Forward to Express server
-  app(expressReq, expressRes);
+  return new Promise<void>((resolve) => {
+    app(expressReq, expressRes);
+    
+    // Ensure the response is properly ended
+    res.on('finish', () => {
+      resolve();
+    });
+  });
 };
