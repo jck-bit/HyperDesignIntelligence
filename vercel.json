@@ -20,8 +20,8 @@
       "dest": "dist/server-build/vercel-adapter.mjs"
     },
     {
-      "src": "/(assets/.*)",
-      "dest": "dist/public/$1"
+      "src": "/assets/(.*)",
+      "dest": "dist/public/assets/$1"
     },
     {
       "src": "/(.*)",
