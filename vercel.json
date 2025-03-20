@@ -29,6 +29,7 @@
         "src": "/(.*)",
         "dest": "dist/public/index.html"
       }
+      
     ],
     "functions": {
       "dist/index.js": {
