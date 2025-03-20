@@ -130,24 +130,19 @@ app.use((req, res, next) => {
 })();
 
 
-// Export for Vercel serverless function
-export default async (req: Request, res: Response) => {
-  // Convert Vercel's Request/Response to Express format
-  const expressReq = req as unknown as express.Request;
-  const expressRes = res as unknown as express.Response;
+// Add this export at the BOTTOM of the file
+export const handler = async (req: Request, res: Response) => {
+  // Initialize app instance for each request (serverless requirement)
+  const expressApp = express();
   
-  // Set NODE_ENV to production for Vercel environment if not already set
-  if (!process.env.NODE_ENV) {
-    process.env.NODE_ENV = 'production';
-  }
+  // Replicate your existing setup
+  expressApp.use(express.json());
+  await initializeDatabase();
+  registerRoutes(expressApp);
   
-  // Forward to Express server
-  return new Promise<void>((resolve) => {
-    app(expressReq, expressRes);
-    
-    // Ensure the response is properly ended
-    res.on('finish', () => {
-      resolve();
-    });
-  });
+  // Handle static assets
+  serveStatic(expressApp);
+  
+  // Forward request to express instance
+  expressApp(req, res);
 };
