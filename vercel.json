@@ -2,12 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "dist/vercel-adapter.mjs",
+      "src": "vercel-adapter.ts",
       "use": "@vercel/node",
       "config": {
         "includeFiles": [
-          "dist/server/**",
-          "client/dist/**"
+          "client/**",
+          "dist/**",
+          "shared/**",
+          "server/**"
         ]
       }
     }
@@ -15,11 +17,11 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "dist/vercel-adapter.mjs"
+      "dest": "/vercel-adapter.ts"
     },
     {
-      "src": "/(.*)", 
-      "dest": "dist/vercel-adapter.mjs"
+      "src": "/(.*)",
+      "dest": "/vercel-adapter.ts"
     }
   ]
 }
