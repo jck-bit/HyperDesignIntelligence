@@ -1,3 +1,4 @@
-import { handler } from "./server/index";
+// @ts-ignore
+import app from "./api/index.js";
 
-export default handler;
+export default app;

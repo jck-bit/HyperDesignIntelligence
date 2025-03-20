@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx server/index.ts",
+    "dev:new": "node --import=tsx dev.js",
     "build": "vite build && esbuild server/index.ts vercel-adapter.ts api/index.js --platform=node --packages=external --format=esm --outdir=dist/server-build --bundle --out-extension:.js=.mjs && node fix-paths.js",
     "api": "NODE_ENV=production node dist/server-build/vercel-adapter.mjs",
     "client": "vite",

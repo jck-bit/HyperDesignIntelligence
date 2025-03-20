@@ -25,12 +25,12 @@ export default defineConfig({
     port: 3001, // Client will run on port 3001
     proxy: {
       '/api': {
-        target: 'http://localhost:3000', // API server runs on port 3000
+        target: 'http://localhost:3003', // API server runs on port 3003
         changeOrigin: true,
         secure: false,
       },
       '/ws': {
-        target: 'ws://localhost:3000',
+        target: 'ws://localhost:3003',
         ws: true,
       }
     }
