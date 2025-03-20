@@ -18,7 +18,7 @@ class AnthropicService {
       const contentBlock = message.content[0];
       
       // Check if it's a text block
-      if ('type' in contentBlock && contentBlock.type === 'text') {
+      if (contentBlock.type === 'text') {
         return contentBlock.text;
       }
       

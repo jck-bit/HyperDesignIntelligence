@@ -2,26 +2,23 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import multer from 'multer';
-// Import storage dynamically to handle different environments
-let storage: any;
+// Import storage directly
+import { storage } from './storage';
 
-// In production (Vercel), use a different import path
-if (process.env.NODE_ENV === 'production') {
-  import('./storage.mjs').then(module => {
-    storage = module.storage;
-  }).catch(error => {
-    console.error('Error importing storage module:', error);
-    // Provide a fallback if import fails
-    storage = createFallbackStorage();
-  });
-} else {
-  // In development, use the regular import
-  import('./storage.js').then(module => {
-    storage = module.storage;
-  }).catch(error => {
-    console.error('Error importing storage module:', error);
-    storage = createFallbackStorage();
-  });
+// This is just a TypeScript type declaration to avoid errors
+// The actual implementation will use the imported storage
+interface StorageInterface {
+  getAgents(): Promise<any[]>;
+  updateAgentStatus(id: number, status: string): Promise<any>;
+  updateAgentMetrics(id: number, metrics: any): Promise<any>;
+  getDigitalTwins(): Promise<any[]>;
+  createDigitalTwin(data: any): Promise<any>;
+  getConversations(): Promise<any[]>;
+  getConversation(id: number): Promise<any | null>;
+  createConversation(data: any): Promise<any>;
+  getConversationsByParticipant(name: string): Promise<any[]>;
+  cleanupDuplicateAgents(): Promise<number>;
+  createAgent(data: any): Promise<any>;
 }
 
 // Fallback storage implementation for when imports fail
