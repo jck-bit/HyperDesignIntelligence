@@ -134,13 +134,13 @@ export default function AgentCard({ agent }: AgentCardProps) {
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   >
-                    Requests: {(agent.metrics as any).requests_handled}
+                    Requests: {agent.metrics && (agent.metrics as any).requests_handled !== undefined ? (agent.metrics as any).requests_handled : 0}
                   </motion.div>
                   <motion.div
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{ duration: 2, repeat: Infinity, delay: 1 }}
                   >
-                    Success: {(agent.metrics as any).success_rate}%
+                    Success: {agent.metrics && (agent.metrics as any).success_rate !== undefined ? (agent.metrics as any).success_rate : 100}%
                   </motion.div>
                 </div>
               </div>

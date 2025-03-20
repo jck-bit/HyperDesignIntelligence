@@ -83,17 +83,34 @@ class WebSocketClient {
       const response = await fetch('/ws');
       if (response.ok) {
         const data = await response.json();
-        if (data.type === "agents_update" && Array.isArray(data.data)) {
-          this.listeners.forEach(listener => listener(data.data));
+        if (data && data.type === "agents_update" && Array.isArray(data.data)) {
+          console.log("Received agents data from WebSocket fallback:", data.data.length);
+          this.listeners.forEach(listener => {
+            try {
+              listener(data.data);
+            } catch (error) {
+              console.error("Error in listener callback:", error);
+            }
+          });
+        } else {
+          console.warn("Invalid data format from WebSocket fallback:", data);
         }
+      } else {
+        console.error("Error fetching from WebSocket fallback:", response.status, response.statusText);
       }
     } catch (error) {
       console.error("Error with Vercel WebSocket fallback:", error);
     }
     
-    // Set up polling for updates
-    setInterval(() => {
-      this.fetchAgentsViaREST();
+    // Set up polling for updates (with error handling)
+    const intervalId = setInterval(() => {
+      try {
+        this.fetchAgentsViaREST();
+      } catch (error) {
+        console.error("Error in polling interval:", error);
+        // If we encounter too many errors, stop polling
+        clearInterval(intervalId);
+      }
     }, 5000); // Poll every 5 seconds
   }
 
@@ -116,7 +133,14 @@ class WebSocketClient {
       if (response.ok) {
         const agents = await response.json();
         if (Array.isArray(agents)) {
-          this.listeners.forEach(listener => listener(agents));
+          console.log("Received agents data from REST API:", agents.length);
+          this.listeners.forEach(listener => {
+            try {
+              listener(agents);
+            } catch (error) {
+              console.error("Error in listener callback:", error);
+            }
+          });
         } else {
           console.error("Invalid response format from /api/agents:", agents);
         }
@@ -126,8 +150,25 @@ class WebSocketClient {
         // If we're on Vercel and getting errors, use the fallback data from the server
         if (window.location.hostname.includes('vercel.app')) {
           console.log("Using fallback agents data for Vercel deployment");
-          // We don't need to do anything here as the useVercelFallback method
-          // already fetches the initial data from the /ws endpoint
+          // Try to fetch from the WebSocket fallback endpoint
+          try {
+            const wsResponse = await fetch('/ws');
+            if (wsResponse.ok) {
+              const data = await wsResponse.json();
+              if (data && data.type === "agents_update" && Array.isArray(data.data)) {
+                console.log("Received fallback agents data:", data.data.length);
+                this.listeners.forEach(listener => {
+                  try {
+                    listener(data.data);
+                  } catch (error) {
+                    console.error("Error in listener callback:", error);
+                  }
+                });
+              }
+            }
+          } catch (wsError) {
+            console.error("Error fetching from WebSocket fallback:", wsError);
+          }
         }
       }
     } catch (error) {

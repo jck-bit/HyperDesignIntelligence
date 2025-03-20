@@ -72,7 +72,11 @@ const fallbackAgents = [
     capabilities: ["Innovation", "Research", "Problem Solving"],
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Einstein",
     status: "active",
-    metrics: {}
+    metrics: {
+      requests_handled: 42,
+      success_rate: 95,
+      avg_response_time: 1.2
+    }
   },
   {
     id: 2,
@@ -81,7 +85,11 @@ const fallbackAgents = [
     capabilities: ["Innovation", "Strategic Thinking", "Product Development"], 
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Musk",
     status: "active",
-    metrics: {}
+    metrics: {
+      requests_handled: 38,
+      success_rate: 92,
+      avg_response_time: 1.5
+    }
   },
   {
     id: 3,
@@ -90,7 +98,11 @@ const fallbackAgents = [
     capabilities: ["Artificial Intelligence", "Leadership", "Technical Vision"],
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Mostaque",
     status: "active",
-    metrics: {}
+    metrics: {
+      requests_handled: 45,
+      success_rate: 97,
+      avg_response_time: 1.1
+    }
   },
   {
     id: 4,
@@ -99,7 +111,11 @@ const fallbackAgents = [
     capabilities: ["Artificial Intelligence", "Research", "Technical Vision"],
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Li",
     status: "active",
-    metrics: {}
+    metrics: {
+      requests_handled: 36,
+      success_rate: 94,
+      avg_response_time: 1.3
+    }
   },
   {
     id: 5,
@@ -108,7 +124,11 @@ const fallbackAgents = [
     capabilities: ["Innovation", "Art", "Engineering"],
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=DaVinci",
     status: "active",
-    metrics: {}
+    metrics: {
+      requests_handled: 40,
+      success_rate: 96,
+      avg_response_time: 1.4
+    }
   },
   {
     id: 6,
@@ -117,7 +137,11 @@ const fallbackAgents = [
     capabilities: ["Innovation", "Product Development", "Design"],
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Jobs",
     status: "active",
-    metrics: {}
+    metrics: {
+      requests_handled: 39,
+      success_rate: 93,
+      avg_response_time: 1.2
+    }
   },
   {
     id: 7,
@@ -126,7 +150,11 @@ const fallbackAgents = [
     capabilities: ["Creativity", "Innovation", "Storytelling"],
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Disney",
     status: "active",
-    metrics: {}
+    metrics: {
+      requests_handled: 37,
+      success_rate: 91,
+      avg_response_time: 1.6
+    }
   }
 ];
 
