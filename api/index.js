@@ -59,7 +59,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Dynamically import and register routes
 (async () => {
   try {
     // Import modules based on environment
