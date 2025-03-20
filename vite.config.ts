@@ -20,6 +20,7 @@ export default defineConfig({
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
   },
+  base: './',
   server: {
     port: 3001, // Client will run on port 3001
     proxy: {
