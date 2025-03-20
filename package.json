@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx server/index.ts",
     "dev:new": "node --import=tsx dev.js",
-    "build": "vite build && esbuild server/**/*.ts shared/**/*.ts vercel-adapter.ts api/index.js --platform=node --packages=external --format=esm --outdir=dist/server-build --bundle --out-extension:.js=.mjs && node fix-paths.js",
+    "build": "vite build && rm -rf dist/server-build && esbuild server/**/*.ts shared/**/*.ts vercel-adapter.ts api/index.js --platform=node --packages=external --format=esm --outdir=dist/server-build --bundle --out-extension:.js=.mjs --external:pg-native && node fix-paths.js",
     "api": "NODE_ENV=production node dist/server-build/vercel-adapter.mjs",
     "client": "vite",
     "start": "concurrently \"npm run api\" \"npm run client\"",
