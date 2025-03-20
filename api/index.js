@@ -59,6 +59,134 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Add direct route handlers for API endpoints
+// Fallback agents data
+const fallbackAgents = [
+  {
+    id: 1,
+    name: "Albert Einstein",
+    type: "Theoretical Physics",
+    capabilities: ["Innovation", "Research", "Problem Solving"],
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Einstein",
+    status: "active"
+  },
+  {
+    id: 2,
+    name: "Elon Musk",
+    type: "Tech Entrepreneur",
+    capabilities: ["Innovation", "Strategic Thinking", "Product Development"], 
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Musk",
+    status: "active"
+  },
+  {
+    id: 3,
+    name: "Emad Mostaque",
+    type: "AI Innovator",
+    capabilities: ["Artificial Intelligence", "Leadership", "Technical Vision"],
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Mostaque",
+    status: "active"
+  },
+  {
+    id: 4,
+    name: "Fei-Fei Li",
+    type: "AI Research",
+    capabilities: ["Artificial Intelligence", "Research", "Technical Vision"],
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Li",
+    status: "active"
+  },
+  {
+    id: 5,
+    name: "Leonardo da Vinci",
+    type: "Renaissance Innovator",
+    capabilities: ["Innovation", "Art", "Engineering"],
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=DaVinci",
+    status: "active"
+  },
+  {
+    id: 6,
+    name: "Steve Jobs",
+    type: "Tech Visionary",
+    capabilities: ["Innovation", "Product Development", "Design"],
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Jobs",
+    status: "active"
+  },
+  {
+    id: 7,
+    name: "Walt Disney",
+    type: "Creative Visionary",
+    capabilities: ["Creativity", "Innovation", "Storytelling"],
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Disney",
+    status: "active"
+  }
+];
+
+// Get agents
+app.get('/api/agents', (req, res) => {
+  res.json(fallbackAgents);
+});
+
+// Update agent status
+app.put('/api/agents/:id/status', (req, res) => {
+  const agentId = parseInt(req.params.id);
+  const { status } = req.body;
+  
+  if (isNaN(agentId) || !status) {
+    return res.status(400).json({ error: 'Invalid agent ID or status' });
+  }
+  
+  // Find the agent in our fallback data
+  const agent = fallbackAgents.find(a => a.id === agentId);
+  if (!agent) {
+    return res.status(404).json({ error: 'Agent not found' });
+  }
+  
+  // Update the status
+  agent.status = status;
+  
+  res.json({ success: true, agent });
+});
+
+// Update agent metrics
+app.put('/api/agents/:id/metrics', (req, res) => {
+  const agentId = parseInt(req.params.id);
+  const { metrics } = req.body;
+  
+  if (isNaN(agentId) || !metrics) {
+    return res.status(400).json({ error: 'Invalid agent ID or metrics' });
+  }
+  
+  // Find the agent in our fallback data
+  const agent = fallbackAgents.find(a => a.id === agentId);
+  if (!agent) {
+    return res.status(404).json({ error: 'Agent not found' });
+  }
+  
+  // Update the metrics
+  agent.metrics = metrics;
+  
+  res.json({ success: true, agent });
+});
+
+// Voice endpoints
+app.get('/api/voice/voices', (req, res) => {
+  // Return default voices
+  res.json([
+    { voice_id: "ThT5KcBeYPX3keUQqHPh", name: "Leonardo da Vinci" },
+    { voice_id: "AZnzlk1XvdvUeBnXmlld", name: "Steve Jobs" }
+  ]);
+});
+
+app.post('/api/voice/synthesize', (req, res) => {
+  const { text, persona } = req.body;
+  
+  // Return a fallback response
+  res.json({
+    fallback: true,
+    text,
+    persona
+  });
+});
+
 (async () => {
   try {
     // Import modules based on environment
