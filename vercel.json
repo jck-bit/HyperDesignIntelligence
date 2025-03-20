@@ -2,26 +2,29 @@
   "version": 2,
   "builds": [
     {
-      "src": "vercel-adapter.ts",
+      "src": "package.json",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": [
-          "client/**",
-          "dist/**",
-          "shared/**",
-          "server/**"
-        ]
+        "buildCommand": "npm run vercel-build"
       }
     }
   ],
   "routes": [
     {
+      "src": "/assets/(.*)",
+      "dest": "/dist/public/assets/$1"
+    },
+    {
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|otf)$)",
+      "dest": "/dist/public/$1"
+    },
+    {
       "src": "/api/(.*)",
-      "dest": "/vercel-adapter.ts"
+      "dest": "/dist/vercel-adapter.mjs"
     },
     {
       "src": "/(.*)",
-      "dest": "/vercel-adapter.ts"
+      "dest": "/dist/vercel-adapter.mjs"
     }
   ]
 }
