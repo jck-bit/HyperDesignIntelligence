@@ -29,12 +29,5 @@
         "src": "/(.*)",
         "dest": "dist/public/index.html"
       }
-      
-    ],
-    "functions": {
-      "dist/index.js": {
-        "memory": 512,
-        "maxDuration": 10
-      }
-    }
+    ]
   }
