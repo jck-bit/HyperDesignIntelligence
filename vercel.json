@@ -17,17 +17,17 @@
       }
     ],
     "routes": [
-      {
-        "src": "/api/(.*)",
-        "dest": "dist/index.js"
-      },
-      {
-        "src": "/assets/(.*)",
-        "dest": "dist/public/assets/$1"
-      },
-      {
-        "src": "/(.*)",
-        "dest": "dist/public/index.html"
-      }
-    ]
+  {
+    "src": "/api/(.*)",
+    "dest": "dist/index.js"
+  },
+  {
+    "src": "/assets/(.*)",
+    "dest": "dist/public/assets/$1"
+  },
+  {
+    "src": "^/.*$",  
+    "dest": "dist/public/index.html"
+  }
+]
   }
