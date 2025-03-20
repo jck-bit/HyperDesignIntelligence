@@ -17,7 +17,11 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "dist/server-build/vercel-adapter.js"
+      "dest": "dist/server-build/vercel-adapter.mjs"
+    },
+    {
+      "src": "/(assets/.*)",
+      "dest": "dist/public/$1"
     },
     {
       "src": "/(.*)",

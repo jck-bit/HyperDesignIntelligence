@@ -20,4 +20,18 @@ export default defineConfig({
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
   },
+  server: {
+    port: 3001, // Client will run on port 3001
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000', // API server runs on port 3000
+        changeOrigin: true,
+        secure: false,
+      },
+      '/ws': {
+        target: 'ws://localhost:3000',
+        ws: true,
+      }
+    }
+  }
 });
