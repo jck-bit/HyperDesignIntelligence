@@ -1,7 +1,5 @@
 // This file is used by Vercel to handle API requests
 import express from 'express';
-import { registerRoutes } from '../server/routes.js';
-import { serveStatic } from '../server/vite.js';
 
 // Create Express app
 const app = express();
@@ -10,11 +8,14 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Register routes
-registerRoutes(app);
+// Simple API route for testing
+app.get('/api', (req, res) => {
+  res.json({ message: 'API is working!' });
+});
 
-// Serve static files
-serveStatic(app);
+app.get('/api/hello', (req, res) => {
+  res.json({ message: 'Hello from the API!' });
+});
 
 // Export the Express app as a serverless function
 export default app;
