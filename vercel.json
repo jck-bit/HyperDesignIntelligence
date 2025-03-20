@@ -2,27 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "vercel-adapter.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": [
-          "client/**",
-          "dist/**",
-          "shared/**",
-          "server/**"
-        ]
-      }
+      "src": "dist/server-build/vercel-adapter.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
-  {
-    "src": "/api/(.*)",
-    "dest": "dist/server-build/vercel-adapter.js"
-  },
-  {
-    "src": "/(.*)",
-    "dest": "dist/public/index.html"
-  }
-],
-  "outputDirectory": "dist/public"
+    {
+      "src": "/(.*)",
+      "dest": "dist/server-build/vercel-adapter.js"
+    }
+  ]
 }
