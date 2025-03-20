@@ -16,6 +16,13 @@ class WebSocketClient {
   connect() {
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
+    // Check if we're on Vercel deployment
+    if (window.location.hostname.includes('vercel.app')) {
+      console.log("Running on Vercel, using HTTP fallback for WebSocket");
+      this.useVercelFallback();
+      return;
+    }
+
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -44,13 +51,6 @@ class WebSocketClient {
         console.log("WebSocket disconnected, attempting reconnect...");
         this.notifyConnectionChange(false);
 
-        // If we're in production on Vercel, don't attempt to reconnect
-        if (window.location.hostname.includes('vercel.app')) {
-          console.log("Running on Vercel, not attempting WebSocket reconnection");
-          this.fallbackToRESTAPI();
-          return;
-        }
-
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
           setTimeout(() => {
             this.reconnectTimeout = Math.min(this.reconnectTimeout * 1.5, 30000); // Exponential backoff
@@ -65,17 +65,36 @@ class WebSocketClient {
 
       this.ws.onerror = (error) => {
         console.error("WebSocket error:", error);
-        
-        // If we're in production on Vercel, don't show error
-        if (window.location.hostname.includes('vercel.app')) {
-          console.log("WebSocket not supported in this environment, using REST API fallback");
-          this.fallbackToRESTAPI();
-        }
+        this.fallbackToRESTAPI();
       };
     } catch (error) {
       console.error("Failed to create WebSocket connection:", error);
       this.fallbackToRESTAPI();
     }
+  }
+
+  // Special handler for Vercel deployments
+  private async useVercelFallback() {
+    console.log("Using Vercel HTTP fallback for WebSocket communication");
+    this.notifyConnectionChange(true); // Pretend we're connected
+    
+    try {
+      // Make an initial HTTP request to the WebSocket endpoint
+      const response = await fetch('/ws');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.type === "agents_update" && Array.isArray(data.data)) {
+          this.listeners.forEach(listener => listener(data.data));
+        }
+      }
+    } catch (error) {
+      console.error("Error with Vercel WebSocket fallback:", error);
+    }
+    
+    // Set up polling for updates
+    setInterval(() => {
+      this.fetchAgentsViaREST();
+    }, 5000); // Poll every 5 seconds
   }
 
   // Fallback to REST API when WebSocket is not available
@@ -92,13 +111,7 @@ class WebSocketClient {
 
   private async fetchAgentsViaREST() {
     try {
-      // Use a hardcoded fallback if we're on Vercel and getting 403 errors
-      if (window.location.hostname.includes('vercel.app')) {
-        console.log("Using hardcoded fallback agents data for Vercel deployment");
-        return;
-      }
-
-      // Regular API call for non-Vercel environments
+      // Make API call to get agents
       const response = await fetch('/api/agents');
       if (response.ok) {
         const agents = await response.json();
@@ -109,6 +122,13 @@ class WebSocketClient {
         }
       } else {
         console.error("Error fetching agents:", response.status, response.statusText);
+        
+        // If we're on Vercel and getting errors, use the fallback data from the server
+        if (window.location.hostname.includes('vercel.app')) {
+          console.log("Using fallback agents data for Vercel deployment");
+          // We don't need to do anything here as the useVercelFallback method
+          // already fetches the initial data from the /ws endpoint
+        }
       }
     } catch (error) {
       console.error("Error fetching agents via REST API:", error);

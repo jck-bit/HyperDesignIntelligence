@@ -17,7 +17,7 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
   // Allow specific headers
-  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Upgrade, Connection');
   
   // Allow specific methods
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -25,6 +25,19 @@ app.use((req, res, next) => {
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+  
+  // Handle WebSocket upgrade requests
+  if (req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket') {
+    // Since Vercel doesn't support WebSockets in serverless functions,
+    // we'll respond with a 200 OK and send the agents data as JSON
+    if (req.url === '/ws') {
+      console.log('WebSocket connection attempt detected, sending fallback response');
+      return res.json({ 
+        type: "agents_update", 
+        data: fallbackAgents 
+      });
+    }
   }
   
   next();
@@ -193,6 +206,15 @@ app.post('/api/voice/synthesize', (req, res) => {
     fallback: true,
     text,
     persona
+  });
+});
+
+// WebSocket endpoint for Vercel
+app.get('/ws', (req, res) => {
+  console.log('GET /ws - Sending WebSocket fallback response');
+  res.json({
+    type: "agents_update",
+    data: fallbackAgents
   });
 });
 

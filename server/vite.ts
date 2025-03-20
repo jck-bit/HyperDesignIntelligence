@@ -86,7 +86,7 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath, {
     maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
     etag: true,
-    index: false // Don't serve index.html automatically
+    index: false 
   }));
 
   // Handle SPA routing - serve index.html for all non-file routes
