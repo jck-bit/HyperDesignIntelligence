@@ -70,7 +70,6 @@ export async function setupVite(app: Express, server: Server) {
   });
 }
 
-// Improved serveStatic function for both local and Vercel environments
 export function serveStatic(app: Express) {
   // Vercel-compatible path resolution
   const distPath = process.env.NODE_ENV === 'production'
