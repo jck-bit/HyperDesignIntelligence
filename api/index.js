@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeConnection, checkTablesExist, initializeTables } from '../server/db.js';
 import { voiceService } from '../server/voice-service.js';
+import { storage } from '../server/storage.js';
 
 // Get the directory name in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -77,6 +78,41 @@ app.use((req, res, next) => {
   });
 
   next();
+});
+
+// REST API endpoints for agent status and metrics updates
+app.put('/api/agents/:id/status', async (req, res) => {
+  try {
+    const agentId = parseInt(req.params.id);
+    const { status } = req.body;
+    
+    if (isNaN(agentId) || !status) {
+      return res.status(400).json({ error: 'Invalid agent ID or status' });
+    }
+    
+    await storage.updateAgentStatus(agentId, status);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating agent status:', error);
+    res.status(500).json({ error: 'Failed to update agent status' });
+  }
+});
+
+app.put('/api/agents/:id/metrics', async (req, res) => {
+  try {
+    const agentId = parseInt(req.params.id);
+    const { metrics } = req.body;
+    
+    if (isNaN(agentId) || !metrics) {
+      return res.status(400).json({ error: 'Invalid agent ID or metrics' });
+    }
+    
+    await storage.updateAgentMetrics(agentId, metrics);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating agent metrics:', error);
+    res.status(500).json({ error: 'Failed to update agent metrics' });
+  }
 });
 
 // Add voice endpoints to match client expectations
