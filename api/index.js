@@ -5,8 +5,6 @@ import * as dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeConnection, checkTablesExist, initializeTables } from '../server/db.js';
-import { voiceService } from '../server/voice-service.js';
-import { storage } from '../server/storage.js';
 
 // Get the directory name in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -80,83 +78,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// REST API endpoints for agent status and metrics updates
-app.put('/api/agents/:id/status', async (req, res) => {
-  try {
-    const agentId = parseInt(req.params.id);
-    const { status } = req.body;
-    
-    if (isNaN(agentId) || !status) {
-      return res.status(400).json({ error: 'Invalid agent ID or status' });
-    }
-    
-    await storage.updateAgentStatus(agentId, status);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error updating agent status:', error);
-    res.status(500).json({ error: 'Failed to update agent status' });
-  }
-});
-
-app.put('/api/agents/:id/metrics', async (req, res) => {
-  try {
-    const agentId = parseInt(req.params.id);
-    const { metrics } = req.body;
-    
-    if (isNaN(agentId) || !metrics) {
-      return res.status(400).json({ error: 'Invalid agent ID or metrics' });
-    }
-    
-    await storage.updateAgentMetrics(agentId, metrics);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error updating agent metrics:', error);
-    res.status(500).json({ error: 'Failed to update agent metrics' });
-  }
-});
-
-// Add voice endpoints to match client expectations
-app.get('/api/voice/voices', async (req, res) => {
-  try {
-    // Use the voiceService directly
-    const voices = await voiceService.getVoices();
-    res.json(voices);
-  } catch (error) {
-    console.error('Error fetching voices:', error);
-    // Return default voices instead of error
-    res.json([
-      { voice_id: "ThT5KcBeYPX3keUQqHPh", name: "Leonardo da Vinci" },
-      { voice_id: "AZnzlk1XvdvUeBnXmlld", name: "Steve Jobs" }
-    ]);
-  }
-});
-
-// Add voice synthesis endpoint
-app.post('/api/voice/synthesize', async (req, res) => {
-  try {
-    const { text, persona } = req.body;
-    console.log(`Voice synthesis request: "${text.substring(0, 30)}..." with persona: ${persona || 'default'}`);
-
-    // Get synthesized speech from voice service
-    const audioData = await voiceService.synthesizeSpeech({ text, persona });
-
-    // If we get a fallback indicator object, send it as JSON
-    if (typeof audioData === 'object' && 'fallback' in audioData) {
-      console.log('Sending fallback response to client');
-      return res.json(audioData);
-    }
-
-    // Otherwise send the audio buffer with appropriate headers
-    console.log('Sending audio response to client:', audioData.length, 'bytes');
-    res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.send(audioData);
-  } catch (error) {
-    console.error('Speech synthesis error:', error);
-    res.status(500).json({ error: 'Failed to synthesize speech' });
-  }
-});
-
 // Add health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -192,6 +113,20 @@ if (process.env.NODE_ENV !== 'production') {
       console.log(`Server running on port ${port}`);
     });
   })();
+} else {
+  // In production, register routes directly
+  registerRoutes(app);
+  
+  // Serve static files
+  serveStatic(app);
+  
+  // Add error handling middleware
+  app.use((err, _req, res, _next) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    res.status(status).json({ message });
+    console.error(err);
+  });
 }
 
 // Export the Express app as a serverless function
