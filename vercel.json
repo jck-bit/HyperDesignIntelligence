@@ -1,0 +1,41 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "package.json",
+        "use": "@vercel/node",
+        "dest": "dist",
+        "config": {
+          "includeFiles": ["dist/**", "server/**", "package.json", "yarn.lock", "pnpm-lock.yaml"]
+        }
+      },
+      {
+        "src": "client/package.json",
+        "use": "@vercel/static-build",
+        "dest": "dist/public",
+        "config": {
+          "deployPath": "dist/public"
+        }
+      }
+    ],
+    "routes": [
+      {
+        "src": "/api/(.*)",
+        "dest": "dist/index.js"
+      },
+      {
+        "src": "/assets/(.*)",
+        "dest": "dist/public/assets/$1"
+      },
+      {
+        "src": "/(.*)",
+        "dest": "dist/public/index.html"
+      }
+    ],
+    "functions": {
+      "dist/index.js": {
+        "memory": 512,
+        "maxDuration": 10
+      }
+    }
+  }
