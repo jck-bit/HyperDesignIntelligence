@@ -90,8 +90,9 @@ class WebSocketClient {
     this.isConnected = true;
     this.notifyConnectionChange(true);
     
-    // Determine API base URL - always use relative URL in production to leverage Vercel's rewrites
+    // Determine API base URL - always use relative URL in production to leverage Vercel's routes
     this.apiBaseUrl = '/api';
+    console.log("Using API base URL:", this.apiBaseUrl);
     
     // Poll immediately
     this.pollAgents();
@@ -104,15 +105,28 @@ class WebSocketClient {
   
   private async pollAgents() {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/agents`);
+      console.log(`Fetching agents from: ${this.apiBaseUrl}/agents`);
+      const response = await fetch(`${this.apiBaseUrl}/agents`, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (!response.ok) {
-        throw new Error(`Failed to fetch agents: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch agents: ${response.status} ${response.statusText} - ${errorText}`);
       }
       
       const agents = await response.json();
+      console.log("Successfully fetched agents:", agents.length);
       this.listeners.forEach(listener => listener(agents));
     } catch (error) {
       console.error("Error polling agents:", error);
+      // Try to provide more detailed error information
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.error("Network error - this could be due to CORS issues or the API server being unreachable");
+      }
     }
   }
 

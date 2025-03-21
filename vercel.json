@@ -1,25 +1,14 @@
 {
   "version": 2,
   "builds": [
-    { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist/public" } }
-  ],
-  "rewrites": [
-    { 
-      "source": "/api/:path*", 
-      "destination": "http://ec2-13-60-196-19.eu-north-1.compute.amazonaws.com:3000/api/:path*"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
-      ]
-    }
+    { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist/public" } },
+    { "src": "api/index.js", "use": "@vercel/node" }
   ],
   "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.js"
+    },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
