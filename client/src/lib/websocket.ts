@@ -90,10 +90,8 @@ class WebSocketClient {
     this.isConnected = true;
     this.notifyConnectionChange(true);
     
-    // Determine API base URL
-    this.apiBaseUrl = window.location.hostname === 'localhost' 
-      ? `${window.location.protocol}//${window.location.host}/api`
-      : 'http://ec2-13-60-196-19.eu-north-1.compute.amazonaws.com:3000/api';
+    // Determine API base URL - always use relative URL in production to leverage Vercel's rewrites
+    this.apiBaseUrl = '/api';
     
     // Poll immediately
     this.pollAgents();
