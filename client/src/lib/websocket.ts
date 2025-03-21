@@ -12,70 +12,110 @@ class WebSocketClient {
   private reconnectTimeout: number = 1000; // Start with 1 second
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 10; // Increase max attempts
-  private useSecureWebsocket: boolean = false; // Flag for secure WebSocket
+  private pollingInterval: NodeJS.Timeout | null = null;
+  private isPolling: boolean = false;
+  private isConnected: boolean = false;
+  private apiBaseUrl: string = '';
 
   connect(useDirectConnection = false) {
+    // Check if we're in development or production
+    const isProduction = window.location.hostname !== 'localhost';
+    
+    if (isProduction) {
+      console.log("Running in production environment, using polling instead of WebSocket");
+      this.startPolling();
+      return;
+    }
+    
+    // Only try WebSocket in development
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
-    let wsUrl;
-    
-    if (useDirectConnection) {
-      // Direct connection to EC2 instance
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      wsUrl = `${protocol}//ec2-13-60-196-19.eu-north-1.compute.amazonaws.com:3000/ws`;
-      console.log("Using direct WebSocket connection to EC2:", wsUrl);
-    } else {
-      // Connection through proxy
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      wsUrl = `${protocol}//${window.location.host}/ws`;
-      console.log("Using proxied WebSocket connection:", wsUrl);
-    }
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    console.log("Using WebSocket connection:", wsUrl);
 
-    this.ws = new WebSocket(wsUrl);
+    try {
+      this.ws = new WebSocket(wsUrl);
 
-    this.ws.onmessage = (event) => {
-      try {
-        const message: WSMessage = JSON.parse(event.data);
-        if (message.type === "agents_update") {
-          this.listeners.forEach(listener => listener(message.data));
-        }
-      } catch (error) {
-        console.error("WebSocket message parsing error:", error);
-      }
-    };
-
-    this.ws.onopen = () => {
-      console.log("WebSocket connected");
-      this.reconnectTimeout = 1000; // Reset timeout on successful connection
-      this.reconnectAttempts = 0;
-      this.notifyConnectionChange(true);
-    };
-
-    this.ws.onclose = () => {
-      console.log("WebSocket disconnected, attempting reconnect...");
-      this.notifyConnectionChange(false);
-
-      if (this.reconnectAttempts < this.maxReconnectAttempts) {
-        setTimeout(() => {
-          this.reconnectTimeout = Math.min(this.reconnectTimeout * 1.5, 30000); // Exponential backoff
-          this.reconnectAttempts++;
-          
-          // Try direct connection after a few attempts with proxy
-          if (this.reconnectAttempts === 3 && !useDirectConnection) {
-            console.log("Switching to direct WebSocket connection after multiple proxy failures");
-            this.connect(true);
-          } else {
-            this.connect(useDirectConnection);
+      this.ws.onmessage = (event) => {
+        try {
+          const message: WSMessage = JSON.parse(event.data);
+          if (message.type === "agents_update") {
+            this.listeners.forEach(listener => listener(message.data));
           }
-        }, this.reconnectTimeout);
-      } else {
-        console.error("Max reconnection attempts reached");
-      }
-    };
+        } catch (error) {
+          console.error("WebSocket message parsing error:", error);
+        }
+      };
 
-    this.ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
+      this.ws.onopen = () => {
+        console.log("WebSocket connected");
+        this.reconnectTimeout = 1000; // Reset timeout on successful connection
+        this.reconnectAttempts = 0;
+        this.isConnected = true;
+        this.notifyConnectionChange(true);
+      };
+
+      this.ws.onclose = () => {
+        console.log("WebSocket disconnected, attempting reconnect...");
+        this.isConnected = false;
+        this.notifyConnectionChange(false);
+
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+          setTimeout(() => {
+            this.reconnectTimeout = Math.min(this.reconnectTimeout * 1.5, 30000); // Exponential backoff
+            this.reconnectAttempts++;
+            this.connect(useDirectConnection);
+          }, this.reconnectTimeout);
+        } else {
+          console.error("Max reconnection attempts reached, switching to polling");
+          this.startPolling();
+        }
+      };
+
+      this.ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+    } catch (error) {
+      console.error("Error creating WebSocket:", error);
+      this.startPolling();
+    }
+  }
+
+  private startPolling() {
+    if (this.isPolling) return;
+    
+    console.log("Starting polling for agents data");
+    this.isPolling = true;
+    this.isConnected = true;
+    this.notifyConnectionChange(true);
+    
+    // Determine API base URL
+    this.apiBaseUrl = window.location.hostname === 'localhost' 
+      ? `${window.location.protocol}//${window.location.host}/api`
+      : 'http://ec2-13-60-196-19.eu-north-1.compute.amazonaws.com:3000/api';
+    
+    // Poll immediately
+    this.pollAgents();
+    
+    // Then set up interval
+    this.pollingInterval = setInterval(() => {
+      this.pollAgents();
+    }, 5000); // Poll every 5 seconds
+  }
+  
+  private async pollAgents() {
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/agents`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch agents: ${response.status}`);
+      }
+      
+      const agents = await response.json();
+      this.listeners.forEach(listener => listener(agents));
+    } catch (error) {
+      console.error("Error polling agents:", error);
+    }
   }
 
   disconnect() {
@@ -83,6 +123,15 @@ class WebSocketClient {
       this.ws.close();
       this.ws = null;
     }
+    
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+      this.isPolling = false;
+    }
+    
+    this.isConnected = false;
+    this.notifyConnectionChange(false);
   }
 
   subscribe(listener: (agents: Agent[]) => void) {
@@ -94,23 +143,48 @@ class WebSocketClient {
 
   onConnectionChange(listener: (connected: boolean) => void) {
     this.connectionListeners.push(listener);
+    // Immediately notify with current state
+    listener(this.isConnected);
     return () => {
       this.connectionListeners = this.connectionListeners.filter(l => l !== listener);
     };
   }
 
   private notifyConnectionChange(connected: boolean) {
+    this.isConnected = connected;
     this.connectionListeners.forEach(listener => listener(connected));
   }
 
   updateAgentStatus(agentId: number, status: string) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    if (this.isPolling) {
+      // Use REST API instead of WebSocket
+      fetch(`${this.apiBaseUrl}/agents/${agentId}/status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status })
+      }).catch(error => {
+        console.error("Error updating agent status:", error);
+      });
+    } else if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "update_status", agentId, status }));
     }
   }
 
   updateMetrics(agentId: number, metrics: any) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    if (this.isPolling) {
+      // Use REST API instead of WebSocket
+      fetch(`${this.apiBaseUrl}/agents/${agentId}/metrics`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ metrics })
+      }).catch(error => {
+        console.error("Error updating agent metrics:", error);
+      });
+    } else if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "update_metrics", agentId, metrics }));
     }
   }

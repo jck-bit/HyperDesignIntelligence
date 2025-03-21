@@ -12,39 +12,30 @@ export default function Dashboard() {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    let connectionAttempts = 0;
     let unsubscribe: () => void;
-    let connectionTimeout: NodeJS.Timeout;
 
-    const connectWebSocket = (useDirectConnection = false) => {
-      console.log(`Attempting WebSocket connection (direct: ${useDirectConnection})`);
-      wsClient.connect(useDirectConnection);
+    const initializeConnection = () => {
+      console.log("Initializing data connection");
       
+      // Connect to WebSocket or start polling (handled internally by wsClient)
+      wsClient.connect();
+      
+      // Subscribe to agent updates
       unsubscribe = wsClient.subscribe((newAgents) => {
         setAgents(newAgents);
         setIsLoading(false);
       });
 
+      // Subscribe to connection status changes
       wsClient.onConnectionChange((connected) => {
         setIsConnected(connected);
-        
-        // If connection fails, try direct connection after a delay
-        if (!connected && connectionAttempts < 2) {
-          connectionTimeout = setTimeout(() => {
-            connectionAttempts++;
-            console.log(`Connection attempt ${connectionAttempts} failed, trying ${connectionAttempts === 1 ? 'direct' : 'proxy'} connection...`);
-            connectWebSocket(connectionAttempts === 1); // Use direct connection on second attempt
-          }, 5000);
-        }
       });
     };
 
-    // Start with proxied connection
-    connectWebSocket(false);
+    initializeConnection();
 
     return () => {
       if (unsubscribe) unsubscribe();
-      if (connectionTimeout) clearTimeout(connectionTimeout);
       wsClient.disconnect();
     };
   }, []);
