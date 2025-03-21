@@ -12,23 +12,39 @@ export default function Dashboard() {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const connectWebSocket = () => {
-      wsClient.connect();
-      const unsubscribe = wsClient.subscribe((newAgents) => {
+    let connectionAttempts = 0;
+    let unsubscribe: () => void;
+    let connectionTimeout: NodeJS.Timeout;
+
+    const connectWebSocket = (useDirectConnection = false) => {
+      console.log(`Attempting WebSocket connection (direct: ${useDirectConnection})`);
+      wsClient.connect(useDirectConnection);
+      
+      unsubscribe = wsClient.subscribe((newAgents) => {
         setAgents(newAgents);
         setIsLoading(false);
       });
 
       wsClient.onConnectionChange((connected) => {
         setIsConnected(connected);
+        
+        // If connection fails, try direct connection after a delay
+        if (!connected && connectionAttempts < 2) {
+          connectionTimeout = setTimeout(() => {
+            connectionAttempts++;
+            console.log(`Connection attempt ${connectionAttempts} failed, trying ${connectionAttempts === 1 ? 'direct' : 'proxy'} connection...`);
+            connectWebSocket(connectionAttempts === 1); // Use direct connection on second attempt
+          }, 5000);
+        }
       });
-
-      return unsubscribe;
     };
 
-    const unsubscribe = connectWebSocket();
+    // Start with proxied connection
+    connectWebSocket(false);
+
     return () => {
-      unsubscribe();
+      if (unsubscribe) unsubscribe();
+      if (connectionTimeout) clearTimeout(connectionTimeout);
       wsClient.disconnect();
     };
   }, []);

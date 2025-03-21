@@ -1,6 +1,6 @@
 
 // Voice settings interface
-interface VoiceSettings {
+export interface VoiceSettings {
   stability: number;
   similarityBoost: number;
   style: number;
@@ -14,7 +14,7 @@ export interface VoiceOption {
 }
 
 export class VoiceService {
-  private apiUrl = '/api/voice';
+  private apiUrl = '/api';
   private selectedVoice: string = "21m00Tcm4TlvDq8ikWAM";
   private settings: VoiceSettings = {
     stability: 0.75,

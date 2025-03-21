@@ -13,167 +13,61 @@ class WebSocketClient {
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 5;
 
-  connect() {
+  connect(useDirectConnection = false) {
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
-    // Check if we're on Vercel deployment
-    if (window.location.hostname.includes('vercel.app')) {
-      console.log("Running on Vercel, using HTTP fallback for WebSocket");
-      this.useVercelFallback();
-      return;
-    }
-
-    try {
+    let wsUrl;
+    
+    if (useDirectConnection) {
+      // Direct connection to EC2 instance
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
-
-      this.ws = new WebSocket(wsUrl);
-
-      this.ws.onmessage = (event) => {
-        try {
-          const message: WSMessage = JSON.parse(event.data);
-          if (message.type === "agents_update") {
-            this.listeners.forEach(listener => listener(message.data));
-          }
-        } catch (error) {
-          console.error("WebSocket message parsing error:", error);
-        }
-      };
-
-      this.ws.onopen = () => {
-        console.log("WebSocket connected");
-        this.reconnectTimeout = 1000; // Reset timeout on successful connection
-        this.reconnectAttempts = 0;
-        this.notifyConnectionChange(true);
-      };
-
-      this.ws.onclose = () => {
-        console.log("WebSocket disconnected, attempting reconnect...");
-        this.notifyConnectionChange(false);
-
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-          setTimeout(() => {
-            this.reconnectTimeout = Math.min(this.reconnectTimeout * 1.5, 30000); // Exponential backoff
-            this.reconnectAttempts++;
-            this.connect();
-          }, this.reconnectTimeout);
-        } else {
-          console.error("Max reconnection attempts reached");
-          this.fallbackToRESTAPI();
-        }
-      };
-
-      this.ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
-        this.fallbackToRESTAPI();
-      };
-    } catch (error) {
-      console.error("Failed to create WebSocket connection:", error);
-      this.fallbackToRESTAPI();
+      wsUrl = `${protocol}//ec2-13-60-196-19.eu-north-1.compute.amazonaws.com:3000/ws`;
+      console.log("Using direct WebSocket connection to EC2:", wsUrl);
+    } else {
+      // Connection through Vite proxy
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      wsUrl = `${protocol}//${window.location.host}/ws`;
+      console.log("Using proxied WebSocket connection:", wsUrl);
     }
-  }
 
-  // Special handler for Vercel deployments
-  private async useVercelFallback() {
-    console.log("Using Vercel HTTP fallback for WebSocket communication");
-    this.notifyConnectionChange(true); // Pretend we're connected
-    
-    try {
-      // Make an initial HTTP request to the WebSocket endpoint
-      const response = await fetch('/ws');
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.type === "agents_update" && Array.isArray(data.data)) {
-          console.log("Received agents data from WebSocket fallback:", data.data.length);
-          this.listeners.forEach(listener => {
-            try {
-              listener(data.data);
-            } catch (error) {
-              console.error("Error in listener callback:", error);
-            }
-          });
-        } else {
-          console.warn("Invalid data format from WebSocket fallback:", data);
-        }
-      } else {
-        console.error("Error fetching from WebSocket fallback:", response.status, response.statusText);
-      }
-    } catch (error) {
-      console.error("Error with Vercel WebSocket fallback:", error);
-    }
-    
-    // Set up polling for updates (with error handling)
-    const intervalId = setInterval(() => {
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onmessage = (event) => {
       try {
-        this.fetchAgentsViaREST();
+        const message: WSMessage = JSON.parse(event.data);
+        if (message.type === "agents_update") {
+          this.listeners.forEach(listener => listener(message.data));
+        }
       } catch (error) {
-        console.error("Error in polling interval:", error);
-        // If we encounter too many errors, stop polling
-        clearInterval(intervalId);
+        console.error("WebSocket message parsing error:", error);
       }
-    }, 5000); // Poll every 5 seconds
-  }
+    };
 
-  // Fallback to REST API when WebSocket is not available
-  private fallbackToRESTAPI() {
-    console.log("Using REST API fallback for agent updates");
-    // Fetch agents immediately
-    this.fetchAgentsViaREST();
-    
-    // Set up polling for updates
-    setInterval(() => {
-      this.fetchAgentsViaREST();
-    }, 10000); // Poll every 10 seconds
-  }
+    this.ws.onopen = () => {
+      console.log("WebSocket connected");
+      this.reconnectTimeout = 1000; // Reset timeout on successful connection
+      this.reconnectAttempts = 0;
+      this.notifyConnectionChange(true);
+    };
 
-  private async fetchAgentsViaREST() {
-    try {
-      // Make API call to get agents
-      const response = await fetch('/api/agents');
-      if (response.ok) {
-        const agents = await response.json();
-        if (Array.isArray(agents)) {
-          console.log("Received agents data from REST API:", agents.length);
-          this.listeners.forEach(listener => {
-            try {
-              listener(agents);
-            } catch (error) {
-              console.error("Error in listener callback:", error);
-            }
-          });
-        } else {
-          console.error("Invalid response format from /api/agents:", agents);
-        }
+    this.ws.onclose = () => {
+      console.log("WebSocket disconnected, attempting reconnect...");
+      this.notifyConnectionChange(false);
+
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        setTimeout(() => {
+          this.reconnectTimeout = Math.min(this.reconnectTimeout * 1.5, 30000); // Exponential backoff
+          this.reconnectAttempts++;
+          this.connect();
+        }, this.reconnectTimeout);
       } else {
-        console.error("Error fetching agents:", response.status, response.statusText);
-        
-        // If we're on Vercel and getting errors, use the fallback data from the server
-        if (window.location.hostname.includes('vercel.app')) {
-          console.log("Using fallback agents data for Vercel deployment");
-          // Try to fetch from the WebSocket fallback endpoint
-          try {
-            const wsResponse = await fetch('/ws');
-            if (wsResponse.ok) {
-              const data = await wsResponse.json();
-              if (data && data.type === "agents_update" && Array.isArray(data.data)) {
-                console.log("Received fallback agents data:", data.data.length);
-                this.listeners.forEach(listener => {
-                  try {
-                    listener(data.data);
-                  } catch (error) {
-                    console.error("Error in listener callback:", error);
-                  }
-                });
-              }
-            }
-          } catch (wsError) {
-            console.error("Error fetching from WebSocket fallback:", wsError);
-          }
-        }
+        console.error("Max reconnection attempts reached");
       }
-    } catch (error) {
-      console.error("Error fetching agents via REST API:", error);
-    }
+    };
+
+    this.ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
   }
 
   disconnect() {
@@ -204,56 +98,12 @@ class WebSocketClient {
   updateAgentStatus(agentId: number, status: string) {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "update_status", agentId, status }));
-    } else if (window.location.hostname.includes('vercel.app')) {
-      // Fallback to REST API
-      this.updateAgentStatusViaREST(agentId, status);
     }
   }
 
   updateMetrics(agentId: number, metrics: any) {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "update_metrics", agentId, metrics }));
-    } else if (window.location.hostname.includes('vercel.app')) {
-      // Fallback to REST API
-      this.updateMetricsViaREST(agentId, metrics);
-    }
-  }
-
-  private async updateAgentStatusViaREST(agentId: number, status: string) {
-    try {
-      const response = await fetch(`/api/agents/${agentId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status })
-      });
-      
-      if (response.ok) {
-        // Refresh agents after update
-        this.fetchAgentsViaREST();
-      }
-    } catch (error) {
-      console.error("Error updating agent status via REST API:", error);
-    }
-  }
-
-  private async updateMetricsViaREST(agentId: number, metrics: any) {
-    try {
-      const response = await fetch(`/api/agents/${agentId}/metrics`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ metrics })
-      });
-      
-      if (response.ok) {
-        // Refresh agents after update
-        this.fetchAgentsViaREST();
-      }
-    } catch (error) {
-      console.error("Error updating agent metrics via REST API:", error);
     }
   }
 }
