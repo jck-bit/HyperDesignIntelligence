@@ -4,8 +4,24 @@
     { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist/public" } }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "http://ec2-13-60-196-19.eu-north-1.compute.amazonaws.com:3000/api/$1" },
-    { "src": "/ws", "dest": "http://ec2-13-60-196-19.eu-north-1.compute.amazonaws.com:3000/ws" },
+    { 
+      "src": "/api/(.*)", 
+      "dest": "http://ec2-13-60-196-19.eu-north-1.compute.amazonaws.com:3000/api/$1",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
+    },
+    { 
+      "src": "/ws",
+      "dest": "http://ec2-13-60-196-19.eu-north-1.compute.amazonaws.com:3000/ws",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
+    },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],

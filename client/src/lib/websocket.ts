@@ -11,7 +11,8 @@ class WebSocketClient {
   private connectionListeners: ((connected: boolean) => void)[] = [];
   private reconnectTimeout: number = 1000; // Start with 1 second
   private reconnectAttempts: number = 0;
-  private maxReconnectAttempts: number = 5;
+  private maxReconnectAttempts: number = 10; // Increase max attempts
+  private useSecureWebsocket: boolean = false; // Flag for secure WebSocket
 
   connect(useDirectConnection = false) {
     if (this.ws?.readyState === WebSocket.OPEN) return;
@@ -24,7 +25,7 @@ class WebSocketClient {
       wsUrl = `${protocol}//ec2-13-60-196-19.eu-north-1.compute.amazonaws.com:3000/ws`;
       console.log("Using direct WebSocket connection to EC2:", wsUrl);
     } else {
-      // Connection through Vite proxy
+      // Connection through proxy
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       wsUrl = `${protocol}//${window.location.host}/ws`;
       console.log("Using proxied WebSocket connection:", wsUrl);
@@ -58,7 +59,14 @@ class WebSocketClient {
         setTimeout(() => {
           this.reconnectTimeout = Math.min(this.reconnectTimeout * 1.5, 30000); // Exponential backoff
           this.reconnectAttempts++;
-          this.connect();
+          
+          // Try direct connection after a few attempts with proxy
+          if (this.reconnectAttempts === 3 && !useDirectConnection) {
+            console.log("Switching to direct WebSocket connection after multiple proxy failures");
+            this.connect(true);
+          } else {
+            this.connect(useDirectConnection);
+          }
         }, this.reconnectTimeout);
       } else {
         console.error("Max reconnection attempts reached");
