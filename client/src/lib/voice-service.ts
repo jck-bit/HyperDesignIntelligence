@@ -1,6 +1,6 @@
 
 // Voice settings interface
-interface VoiceSettings {
+export interface VoiceSettings {
   stability: number;
   similarityBoost: number;
   style: number;
@@ -14,7 +14,7 @@ export interface VoiceOption {
 }
 
 export class VoiceService {
-  private apiUrl = '/api/voice';
+  private apiUrl = '/api';
   private selectedVoice: string = "21m00Tcm4TlvDq8ikWAM";
   private settings: VoiceSettings = {
     stability: 0.75,
@@ -46,52 +46,78 @@ export class VoiceService {
 
   async speak(text: string, persona?: string): Promise<void> {
     try {
-      const response = await fetch(`${this.apiUrl}/synthesize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ text, persona })
-      });
+      console.log(`Attempting to speak: "${text.substring(0, 30)}..." as ${persona || 'default'}`);
+      
+      // Try server-side synthesis first
+      try {
+        console.log('Attempting server-side speech synthesis');
+        const response = await fetch(`${this.apiUrl}/synthesize`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ text, persona })
+        });
 
-      if (!response.ok) {
-        throw new Error(`Voice API returned ${response.status}`);
-      }
+        if (!response.ok) {
+          console.warn(`Voice API returned ${response.status}, falling back to browser speech`);
+          throw new Error(`Voice API returned ${response.status}`);
+        }
 
-      // Check if the response is JSON (fallback indicator)
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const fallbackData = await response.json();
-        console.log('Using fallback speech:', fallbackData);
-        return this.useBrowserSpeech(fallbackData.text || text, persona);
-      }
+        // Check if the response is JSON (fallback indicator)
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const fallbackData = await response.json();
+          console.log('Server returned JSON instead of audio, using fallback speech:', fallbackData);
+          return this.useBrowserSpeech(fallbackData.text || text, persona);
+        }
 
-      const blob = await response.blob();
-      const audioUrl = URL.createObjectURL(blob);
-      const audio = new Audio(audioUrl);
+        // Process audio response
+        const blob = await response.blob();
+        if (blob.size === 0) {
+          console.warn('Received empty audio blob, falling back to browser speech');
+          throw new Error('Empty audio response');
+        }
 
-      return new Promise((resolve, reject) => {
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          resolve();
-        };
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
 
-        audio.onerror = (err) => {
-          URL.revokeObjectURL(audioUrl);
-          reject(err);
-        };
+        return new Promise((resolve, reject) => {
+          audio.onended = () => {
+            URL.revokeObjectURL(audioUrl);
+            resolve();
+          };
 
-        audio.play().catch(err => {
-          console.error('Error playing audio:', err);
-          this.useBrowserSpeech(text, persona).catch(err => {
-            console.error('Error speaking text:', err);
-            reject(err);
+          audio.onerror = (err) => {
+            console.error('Audio playback error:', err);
+            URL.revokeObjectURL(audioUrl);
+            // Try browser speech as fallback
+            this.useBrowserSpeech(text, persona)
+              .then(resolve)
+              .catch(reject);
+          };
+
+          // Pre-load the audio
+          audio.load();
+          
+          // Try to play the audio
+          audio.play().catch(err => {
+            console.error('Error playing audio:', err);
+            URL.revokeObjectURL(audioUrl);
+            // Try browser speech as fallback
+            this.useBrowserSpeech(text, persona)
+              .then(resolve)
+              .catch(reject);
           });
         });
-      });
+      } catch (error) {
+        console.warn('Server-side synthesis failed, using browser speech:', error);
+        return this.useBrowserSpeech(text, persona);
+      }
     } catch (error) {
-      console.error('Error speaking text:', error);
-      return this.useBrowserSpeech(text, persona);
+      console.error('All speech synthesis methods failed:', error);
+      // Just resolve the promise to prevent blocking the conversation
+      return Promise.resolve();
     }
   }
 

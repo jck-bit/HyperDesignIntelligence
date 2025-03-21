@@ -12,23 +12,30 @@ export default function Dashboard() {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const connectWebSocket = () => {
+    let unsubscribe: () => void;
+
+    const initializeConnection = () => {
+      console.log("Initializing data connection");
+      
+      // Connect to WebSocket or start polling (handled internally by wsClient)
       wsClient.connect();
-      const unsubscribe = wsClient.subscribe((newAgents) => {
+      
+      // Subscribe to agent updates
+      unsubscribe = wsClient.subscribe((newAgents) => {
         setAgents(newAgents);
         setIsLoading(false);
       });
 
+      // Subscribe to connection status changes
       wsClient.onConnectionChange((connected) => {
         setIsConnected(connected);
       });
-
-      return unsubscribe;
     };
 
-    const unsubscribe = connectWebSocket();
+    initializeConnection();
+
     return () => {
-      unsubscribe();
+      if (unsubscribe) unsubscribe();
       wsClient.disconnect();
     };
   }, []);

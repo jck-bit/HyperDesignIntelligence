@@ -1,5 +1,4 @@
-// @ts-ignore
-import app from "./api/index.js";
-
-// Export the Express app as a serverless function
-export default app;
+// This file is used by Vercel to handle API requests
+// The actual implementation is in api/index.js
+// @ts-ignore - Ignore TypeScript error for missing type declarations
+export { default } from "./api/index.js";
