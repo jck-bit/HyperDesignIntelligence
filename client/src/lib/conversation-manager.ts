@@ -48,6 +48,7 @@ export class ConversationManager {
     }
 
     try {
+      console.log('Initializing conversation');
       const systemMessage: Message = {
         role: "system",
         content: `You are facilitating a natural conversation between Leonardo da Vinci and Steve Jobs about innovation, creativity, and design thinking. 
@@ -79,11 +80,21 @@ export class ConversationManager {
       this.context.topic = "innovation, creativity, and design thinking";
       this.isInitialized = true;
 
+      // Initialize audio system before starting conversation
+      try {
+        await voiceService.initAudio();
+      } catch (error) {
+        console.warn('Failed to initialize audio, continuing without audio initialization:', error);
+      }
+
       await this.handleUserInput(initialPrompt);
     } catch (error) {
       console.error('Failed to start conversation:', error);
       this.isInitialized = false;
-      throw error;
+      
+      // Don't rethrow the error, just log it and continue
+      // This prevents the application from crashing if conversation fails to start
+      console.log('Conversation initialization failed, but application will continue');
     }
   }
 
@@ -111,7 +122,12 @@ export class ConversationManager {
 
     try {
       if (!this.isInitialized) {
-        await this.startConversation();
+        try {
+          await this.startConversation();
+        } catch (error) {
+          console.error('Failed to initialize conversation during handleUserInput:', error);
+          // Continue anyway - we'll try to handle the input even if initialization failed
+        }
       }
 
       this.context.turnCount++;
@@ -122,40 +138,75 @@ export class ConversationManager {
         content: input
       });
 
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4",
-        messages: this.context.messages,
-        temperature: 0.85,
-        max_tokens: 120, // Slightly shorter responses for more back-and-forth
-        presence_penalty: 0.7,
-        frequency_penalty: 0.5
-      });
+      console.log('Sending request to OpenAI...');
+      try {
+        const response = await this.openai.chat.completions.create({
+          model: "gpt-4",
+          messages: this.context.messages,
+          temperature: 0.85,
+          max_tokens: 120, // Slightly shorter responses for more back-and-forth
+          presence_penalty: 0.7,
+          frequency_penalty: 0.5
+        });
 
-      const aiResponse = response.choices[0]?.message?.content;
-      if (!aiResponse) {
-        throw new Error("No response received from AI");
+        const aiResponse = response.choices[0]?.message?.content;
+        if (!aiResponse) {
+          throw new Error("No response received from AI");
+        }
+
+        const currentSpeaker = this.inferCurrentSpeaker(aiResponse);
+        console.log('Speaking as:', currentSpeaker);
+
+        this.context.messages.push({
+          role: "assistant",
+          content: aiResponse,
+          persona: currentSpeaker
+        });
+
+        this.context.lastResponse = aiResponse;
+        
+        // Try to speak the response, but don't block the conversation if it fails
+        try {
+          await this.speak(aiResponse, currentSpeaker);
+        } catch (speakError) {
+          console.error('Error in speech synthesis, continuing without speech:', speakError);
+        }
+      } catch (aiError: any) {
+        console.error('Error getting AI response:', aiError);
+        
+        // Create a fallback response
+        const fallbackResponse = "I'm having trouble connecting to the AI service. Let's continue our exploration of innovation and design thinking. What aspects interest you most?";
+        const fallbackSpeaker = "Leonardo da Vinci";
+        
+        this.context.messages.push({
+          role: "assistant",
+          content: fallbackResponse,
+          persona: fallbackSpeaker
+        });
+        
+        this.context.lastResponse = fallbackResponse;
+        
+        // Try to speak the fallback response
+        try {
+          await this.speak(fallbackResponse, fallbackSpeaker);
+        } catch (speakError) {
+          console.error('Error in fallback speech synthesis:', speakError);
+        }
       }
-
-      const currentSpeaker = this.inferCurrentSpeaker(aiResponse);
-      console.log('Speaking as:', currentSpeaker);
-
-      this.context.messages.push({
-        role: "assistant",
-        content: aiResponse,
-        persona: currentSpeaker
-      });
-
-      this.context.lastResponse = aiResponse;
-      await this.speak(aiResponse, currentSpeaker);
-
     } catch (error: any) {
-      console.error('Error in conversation:', error);
+      console.error('Unhandled error in conversation:', error);
       const errorMessage = error.message.includes('quota_exceeded')
         ? "Voice synthesis quota exceeded. Please try again later."
         : "I apologize, but I'm having trouble processing that request. Could you try again?";
 
-      await this.speak(errorMessage);
-      throw error;
+      try {
+        await this.speak(errorMessage);
+      } catch (speakError) {
+        console.error('Error speaking error message:', speakError);
+      }
+      
+      // Don't rethrow the error, just log it and continue
+      console.log('Conversation error handled, application will continue');
     }
   }
 
@@ -163,13 +214,27 @@ export class ConversationManager {
     if (!text.trim()) return;
 
     try {
-      await voiceService.synthesizeSpeech({
-        text,
-        persona
+      console.log(`Attempting to speak as ${persona || 'default'}: "${text.substring(0, 30)}..."`);
+      
+      // Set a timeout to prevent the speech synthesis from blocking the conversation for too long
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Speech synthesis timed out'));
+        }, 10000); // 10 second timeout
       });
+      
+      // Try to synthesize speech with a timeout
+      await Promise.race([
+        voiceService.synthesizeSpeech({
+          text,
+          persona
+        }),
+        timeoutPromise
+      ]);
     } catch (error) {
       console.error('Error in speech synthesis:', error);
-      throw error;
+      // Don't rethrow the error, just log it and continue
+      console.log('Speech synthesis failed, continuing without speech');
     }
   }
 
