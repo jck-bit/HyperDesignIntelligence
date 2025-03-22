@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 
 const app = express();
 const API_BASE_URL = 'http://ec2-13-60-196-19.eu-north-1.compute.amazonaws.com:3000/api';
+const OPENAI_API_URL = 'https://api.openai.com/v1';
 
 // Parse JSON request body
 app.use(express.json());
@@ -18,6 +19,52 @@ app.use((req, res, next) => {
   }
   
   next();
+});
+
+// Proxy OpenAI API requests
+app.post('/api/openai.com/:path(*)', async (req, res) => {
+  try {
+    const path = req.params.path;
+    const url = `${OPENAI_API_URL}/${path}`;
+    
+    console.log(`Proxying OpenAI request to: ${url}`);
+    
+    // Get the OpenAI API key from the request headers or environment variable
+    let apiKey = req.headers['authorization'];
+    if (apiKey && apiKey.startsWith('Bearer ')) {
+      apiKey = apiKey.substring(7); // Remove 'Bearer ' prefix
+    } else {
+      apiKey = req.headers['x-openai-api-key'] || process.env.VITE_OPENAI_API_KEY;
+    }
+    
+    if (!apiKey) {
+      return res.status(401).json({ error: 'OpenAI API key is required' });
+    }
+    
+    console.log('Using API key format:', apiKey.substring(0, 10) + '...');
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(req.body),
+    });
+    
+    const contentType = response.headers.get('content-type');
+    
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    } else {
+      const text = await response.text();
+      return res.status(response.status).send(text);
+    }
+  } catch (error) {
+    console.error('OpenAI proxy error:', error);
+    res.status(500).json({ error: 'OpenAI proxy error', details: error.message });
+  }
 });
 
 // Fallback speech synthesis for browsers
@@ -96,9 +143,15 @@ app.get('/api/voices', async (req, res) => {
 });
 
 // Proxy all other API requests
-app.all('/api/:path(*)', async (req, res) => {
+app.all('/api/:path(*)', async (req, res, next) => {
   try {
     const path = req.params.path;
+    
+    // Skip OpenAI API requests, they're handled separately
+    if (path.startsWith('openai/')) {
+      return next();
+    }
+    
     const url = `${API_BASE_URL}/${path}`;
     
     console.log(`Proxying request to: ${url}`);

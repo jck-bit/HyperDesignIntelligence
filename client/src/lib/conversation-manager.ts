@@ -1,4 +1,3 @@
-
 import { voiceService } from './voice-service';
 import OpenAI from "openai";
 
@@ -35,6 +34,9 @@ export class ConversationManager {
       console.error('OpenAI API key not found');
       throw new Error('OpenAI API key is required');
     }
+    
+    console.log('Initializing OpenAI client with API key format:', apiKey.substring(0, 10) + '...');
+    
     this.openai = new OpenAI({
       apiKey,
       dangerouslyAllowBrowser: true
@@ -140,18 +142,121 @@ export class ConversationManager {
 
       console.log('Sending request to OpenAI...');
       try {
-        const response = await this.openai.chat.completions.create({
-          model: "gpt-4",
-          messages: this.context.messages,
-          temperature: 0.85,
-          max_tokens: 120, // Slightly shorter responses for more back-and-forth
-          presence_penalty: 0.7,
-          frequency_penalty: 0.5
-        });
-
-        const aiResponse = response.choices[0]?.message?.content;
-        if (!aiResponse) {
-          throw new Error("No response received from AI");
+        console.log('Using OpenAI to generate response...');
+        
+        // Variable to store the AI response
+        let aiResponse: string;
+        
+        // Try to use our proxy endpoint first
+        try {
+          console.log('Using proxy endpoint for OpenAI request');
+          const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+          
+          // First try with gpt-4o
+          try {
+            console.log('Attempting with gpt-4o model');
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+              },
+              body: JSON.stringify({
+                model: "gpt-4o", 
+                messages: this.context.messages,
+                temperature: 0.85,
+                max_tokens: 120,
+                presence_penalty: 0.7,
+                frequency_penalty: 0.5
+              })
+            });
+            
+            // Check for quota exceeded error
+            if (response.status === 429) {
+              const errorData = await response.json();
+              if (errorData.error && errorData.error.type === "insufficient_quota") {
+                console.warn('OpenAI quota exceeded, falling back to gpt-3.5-turbo');
+                throw new Error('quota_exceeded');
+              }
+            }
+            
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
+            }
+            
+            const data = await response.json();
+            const content = data.choices[0]?.message?.content;
+            
+            if (!content) {
+              throw new Error("No response received from AI");
+            }
+            
+            aiResponse = content;
+          } catch (modelError: any) {
+            // If we get a quota exceeded error, try with a cheaper model
+            if (modelError.message === 'quota_exceeded' || 
+                (modelError.message && modelError.message.includes('quota'))) {
+              console.log('Falling back to gpt-3.5-turbo due to quota limits');
+              
+              const fallbackResponse = await fetch('/api/openai/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                  model: "gpt-3.5-turbo", // Fallback to cheaper model
+                  messages: this.context.messages,
+                  temperature: 0.85,
+                  max_tokens: 120,
+                  presence_penalty: 0.7,
+                  frequency_penalty: 0.5
+                })
+              });
+              
+              if (!fallbackResponse.ok) {
+                const errorText = await fallbackResponse.text();
+                throw new Error(`OpenAI API error with fallback model: ${fallbackResponse.status} - ${errorText}`);
+              }
+              
+              const data = await fallbackResponse.json();
+              const content = data.choices[0]?.message?.content;
+              
+              if (!content) {
+                throw new Error("No response received from AI with fallback model");
+              }
+              
+              aiResponse = content;
+            } else {
+              // If it's not a quota error, rethrow
+              throw modelError;
+            }
+          }
+        } catch (proxyError) {
+          console.error('Proxy endpoint failed, falling back to direct OpenAI SDK:', proxyError);
+          
+          // Fall back to direct OpenAI SDK - try with gpt-3.5-turbo to avoid quota issues
+          try {
+            const response = await this.openai.chat.completions.create({
+              model: "gpt-3.5-turbo", // Using a cheaper model to avoid quota issues
+              messages: this.context.messages,
+              temperature: 0.85,
+              max_tokens: 120,
+              presence_penalty: 0.7,
+              frequency_penalty: 0.5
+            });
+            
+            const content = response.choices[0]?.message?.content;
+            if (!content) {
+              throw new Error("No response received from AI");
+            }
+            
+            aiResponse = content;
+          } catch (sdkError) {
+            console.error('OpenAI SDK also failed:', sdkError);
+            throw sdkError;
+          }
         }
 
         const currentSpeaker = this.inferCurrentSpeaker(aiResponse);
